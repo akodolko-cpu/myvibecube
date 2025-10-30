@@ -4,7 +4,6 @@ from typing import Optional, Iterable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-# Пакетный импорт из infrastructure.database.models (__init__ реэкспортирует из orm.py)
 from infrastructure.database.models import Role, RoleCommand, Command
 
 class RoleRepository:
@@ -13,6 +12,9 @@ class RoleRepository:
 
     def get_by_name(self, role_name: str) -> Optional[Role]:
         return self.session.execute(select(Role).where(Role.role_name == role_name)).scalar_one_or_none()
+
+    def get_by_id(self, role_id: int) -> Optional[Role]:
+        return self.session.execute(select(Role).where(Role.id == role_id)).scalar_one_or_none()
 
     def list(self) -> Iterable[Role]:
         return self.session.execute(select(Role)).scalars().all()
