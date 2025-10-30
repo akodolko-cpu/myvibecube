@@ -12,38 +12,53 @@ MyVibe Telegram Bot - Main Entry Point
 
 import asyncio
 import logging
+import os
+from pathlib import Path
 
-from app.config.settings import Settings
-from app.container import Container
-from handlers.common.start_handler import register_start_handlers
-from infrastructure.logging.logger import setup_logging
+# Добавляем корневую папку в путь для импортов
+import sys
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
+from dotenv import load_dotenv
+from telegram.ext import ApplicationBuilder
 
-async def main() -> None:
+# Загружаем переменные окружения
+load_dotenv()
+
+# Настройка логирования
+logging.basicConfig(
+    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
+    format=os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"),
+)
+
+def main():
     """Главная функция запуска бота"""
-    # Настройка логирования
-    setup_logging()
     logger = logging.getLogger(__name__)
     
     try:
-        # Загрузка настроек
-        settings = Settings()
+        # Получаем токен бота
+        token = os.getenv("BOT_TOKEN")
+        if not token:
+            raise RuntimeError("BOT_TOKEN не установлен в .env файле")
         
-        # Инициализация DI контейнера
-        container = Container(settings)
-        container.wire(modules=[__name__])
+        # Создаем приложение
+        app = ApplicationBuilder().token(token).build()
         
-        # Получение бота из контейнера
-        dp = container.dispatcher()
-        bot = container.bot()
+        # Импортируем и регистрируем обработчики
+        from app.handlers.start_handler import get_handler as start_handler
+        from app.handlers.access_handler import get_handler as access_handler
         
-        # Регистрация обработчиков
-        register_start_handlers(dp)
+        # Регистрируем обработчики
+        app.add_handler(start_handler())
+        app.add_handler(access_handler())
         
         logger.info("🚀 MyVibe Bot запускается...")
+        logger.info("✅ ЭТАП 1: Система управления доступом активирована")
+        logger.info("📋 Доступные команды: /start, /access")
         
         # Запуск бота
-        await dp.start_polling(bot)
+        app.run_polling()
         
     except Exception as e:
         logger.error(f"❌ Ошибка запуска бота: {e}")
@@ -51,4 +66,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
