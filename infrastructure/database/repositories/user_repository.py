@@ -4,8 +4,8 @@ from typing import Optional, Iterable
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-# Прямой импорт моделей из файла models.py
-from infrastructure.database.models.models import User, Role
+# Импортируем из пакетного модуля (реэкспорт из orm.py)
+from infrastructure.database.models import User, Role
 
 class UserRepository:
     def __init__(self, session: Session):
