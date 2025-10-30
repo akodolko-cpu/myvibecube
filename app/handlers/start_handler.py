@@ -1,20 +1,24 @@
-from __future__ import annotations
-from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
+from aiogram import Router, types
+from aiogram.filters import Command
+from aiogram.types import Message
 
-from app.middleware.access_middleware import require_access
+from punq import Container
 
-@require_access("/start")
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command."""
-    user = update.effective_user
-    welcome_text = (
-        f"👋 Добро пожаловать, {user.first_name}!\n\n"
-        "🤖 Это MyVibe Bot - система управления продажами.\n\n"
-        "Используйте /help для просмотра доступных команд."
-    )
-    await update.effective_chat.send_message(welcome_text)
 
-def get_handler():
-    """Return the command handler for /start."""
-    return CommandHandler("start", start_command)
+def register_start_handler(router: Router, container: Container):
+    """Register start command handler"""
+    
+    @router.message(Command("start"))
+    async def start_command(message: Message) -> None:
+        """Handle /start command"""
+        user = message.from_user
+        welcome_text = (
+            f"👋 Привет, {user.first_name}!\n\n"
+            "🤖 Я MyVibe Bot - твой помощник для работы!\n\n"
+            "📊 Доступные команды:\n"
+            "/start - Начать работу\n"
+            "/access - Управление доступом (admin)\n\n"
+            "✨ Использую aiogram + punq DI + SQLAlchemy!"
+        )
+        
+        await message.answer(welcome_text)
