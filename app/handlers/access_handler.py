@@ -4,26 +4,30 @@ from aiogram.types import Message
 
 from punq import Container
 from app.services.access_service import AccessService
-from app.handlers.access_dialog import register_user_manage_dialog
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 def register_access_handler(router: Router, container: Container):
-    """Register access command handler.
-    Заменён на запуск интерактивного диалога управления пользователями.
-    """
-
-    # Регистрация самого диалога
-    register_user_manage_dialog(router)
+    """Register access command handler with strict guards"""
 
     @router.message(Command("access"))
     async def access_command(message: Message) -> None:
         access_service = container.resolve(AccessService)
-        # Доступ только для админов (по строгому правилу ENV+DB)
+
+        # 1) Полная блокировка незарегистрированных (нет в users):
+        from infrastructure.database.connection import session_scope
+        from infrastructure.database.repositories.user_repository import UserRepository
+        with session_scope() as s:
+            if UserRepository(s).get_by_tg_id(message.from_user.id) is None:
+                await message.answer("❌ Доступ запрещён. Ты никто. Обратись к администратору.")
+                return
+
+        # 2) Доступ к /access — только строгий админ (ENV + DB role=admin)
         if not access_service.is_admin(message.from_user.id):
-            await message.answer("❌ Доступ запрещён.")
+            await message.answer("❌ Доступ запрещён. Недостаточно прав.")
             return
-        # Покажем корневое меню диалога
-        from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+        # Корневое меню диалога
         kb = InlineKeyboardBuilder()
         kb.button(text="➕ Добавить пользователя", callback_data="access:add")
         kb.button(text="➖ Удалить пользователя", callback_data="access:remove")
