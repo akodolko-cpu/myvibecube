@@ -4,7 +4,8 @@ from typing import Optional, Iterable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from infrastructure.database.models import Role, RoleCommand, Command
+# Импортируем напрямую из файла models.py, чтобы исключить проблемы пакетного импорта
+from infrastructure.database.models.models import Role, RoleCommand, Command
 
 class RoleRepository:
     def __init__(self, session: Session):
