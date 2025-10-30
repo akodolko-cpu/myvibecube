@@ -4,7 +4,6 @@ from typing import Optional, Iterable
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-# Импортируем из пакетного модуля (реэкспорт из orm.py)
 from infrastructure.database.models import User, Role
 
 class UserRepository:
@@ -25,3 +24,6 @@ class UserRepository:
 
     def list(self) -> Iterable[User]:
         return self.session.execute(select(User).join(Role)).scalars().all()
+
+    def list_active(self) -> Iterable[User]:
+        return self.session.execute(select(User).where(User.is_active.is_(True))).scalars().all()
