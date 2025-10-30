@@ -73,12 +73,12 @@ def register_user_manage_dialog(router: Router):
             if dlg["step"] == 2:
                 dlg["full_name"] = message.text.strip()
                 dlg["step"] = 3
-                # выбор роли кнопками
+                # выбор роли кнопками: сразу извлекаем простые кортежи, чтобы не зависеть от сессии
                 with session_scope() as s:
-                    roles = RoleRepository(s).list()
+                    roles = [(r.id, r.role_name) for r in RoleRepository(s).list()]
                 kb = InlineKeyboardBuilder()
-                for r in roles:
-                    kb.button(text=r.role_name, callback_data=f"access:role:{r.id}")
+                for role_id, role_name in roles:
+                    kb.button(text=role_name, callback_data=f"access:role:{role_id}")
                 kb.button(text="⬅️ Назад", callback_data="access:back_name")
                 kb.adjust(2)
                 await message.answer("Выберите роль:", reply_markup=kb.as_markup())
@@ -134,8 +134,10 @@ def register_user_manage_dialog(router: Router):
         role_id = int(cb.data.split(":")[-1])
         dlg["role_id"] = role_id
         dlg["step"] = 4
+        # снова достаём имя роли в отдельной сессии
         with session_scope() as s:
             role = RoleRepository(s).get_by_id(role_id)
+            role_name = role.role_name if role else str(role_id)
         kb = InlineKeyboardBuilder()
         kb.button(text="✅ Подтвердить", callback_data="access:confirm_add")
         kb.button(text="✏️ Изменить", callback_data="access:back_root")
@@ -144,7 +146,7 @@ def register_user_manage_dialog(router: Router):
             "Подтверждение добавления:\n"
             f"• Telegram ID: {dlg['telegram_id']}\n"
             f"• Имя: {dlg['full_name']}\n"
-            f"• Роль: {getattr(role,'role_name',role_id)}"
+            f"• Роль: {role_name}"
         )
         await cb.message.edit_text(text, reply_markup=kb.as_markup())
         await cb.answer()
