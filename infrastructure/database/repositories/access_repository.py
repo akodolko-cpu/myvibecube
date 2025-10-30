@@ -4,8 +4,8 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-# Прямой импорт моделей из файла models.py
-from infrastructure.database.models.models import User, Role, Command, RoleCommand
+# Пакетный импорт из infrastructure.database.models (__init__ реэкспортирует из orm.py)
+from infrastructure.database.models import User, Role, Command, RoleCommand
 
 class AccessRepository:
     def __init__(self, session: Session):
