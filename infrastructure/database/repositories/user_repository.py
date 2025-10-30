@@ -27,3 +27,6 @@ class UserRepository:
 
     def list_active(self) -> Iterable[User]:
         return self.session.execute(select(User).where(User.is_active.is_(True))).scalars().all()
+
+    def deactivate(self, user_id: int) -> None:
+        self.session.execute(update(User).where(User.id == user_id).values(is_active=False))
