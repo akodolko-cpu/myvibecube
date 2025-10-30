@@ -4,8 +4,8 @@ from typing import Optional, Iterable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-# Импортируем напрямую из файла models.py, чтобы исключить проблемы пакетного импорта
-from infrastructure.database.models.models import Role, RoleCommand, Command
+# Пакетный импорт из infrastructure.database.models (__init__ реэкспортирует из orm.py)
+from infrastructure.database.models import Role, RoleCommand, Command
 
 class RoleRepository:
     def __init__(self, session: Session):
@@ -21,6 +21,10 @@ class RoleRepository:
         q = (
             select(RoleCommand)
             .join(Command, RoleCommand.command_id == Command.id)
-            .where(RoleCommand.role_id == role_id, Command.command_name == command_name, Command.is_active.is_(True))
+            .where(
+                RoleCommand.role_id == role_id,
+                Command.command_name == command_name,
+                Command.is_active.is_(True),
+            )
         )
         return self.session.execute(q).scalar_one_or_none() is not None
