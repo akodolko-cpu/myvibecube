@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import asyncio
 import logging
 import os
 
 from dotenv import load_dotenv
-from telegram.ext import ApplicationBuilder
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 
 from app.container import setup_container
 
@@ -16,28 +19,37 @@ logging.basicConfig(
 )
 
 
-def main():
+async def main():
     logger = logging.getLogger(__name__)
 
     token = os.getenv("BOT_TOKEN")
     if not token:
         raise RuntimeError("BOT_TOKEN не установлен в .env")
 
-    app = ApplicationBuilder().token(token).build()
-
     # DI container
     container = setup_container()
 
-    # Handlers registration
-    from app.handlers.start_handler import get_handler as start_handler
-    from app.handlers.access_handler import get_handler as access_handler
+    # Bot and Dispatcher
+    bot = Bot(
+        token=token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+    dp = Dispatcher()
 
-    app.add_handler(start_handler())
-    app.add_handler(access_handler())
+    # Register handlers
+    from app.handlers.start_handler import register_start_handler
+    from app.handlers.access_handler import register_access_handler
 
-    logger.info("🚀 MyVibe Bot (punq DI) запускается...")
-    app.run_polling()
+    register_start_handler(dp, container)
+    register_access_handler(dp, container)
+
+    logger.info("🚀 MyVibe Bot (aiogram + punq DI) запускается...")
+    
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
