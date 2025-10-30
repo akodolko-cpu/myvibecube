@@ -1,76 +1,79 @@
-from __future__ import annotations
-from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
+from aiogram import Router
+from aiogram.filters import Command
+from aiogram.types import Message
+from aiogram.enums import ParseMode
 
-from app.middleware.access_middleware import require_access
+from punq import Container
 from app.services.access_service import AccessService
 
-access_service = AccessService()
 
-@require_access("/access")
-async def access_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /access command for user management."""
-    args = context.args or []
+def register_access_handler(router: Router, container: Container):
+    """Register access command handler"""
     
-    # Only admins can use this command
-    if not access_service.is_admin(update.effective_user.id):
-        await update.effective_chat.send_message("❌ Команда доступна только администраторам.")
-        return
-
-    # Show usage if no args provided
-    if len(args) < 3 or args[0] not in {"add", "set"}:
-        usage_text = (
-            "📝 **Управление пользователями:**\n\n"
-            "• `/access add <telegram_id> <role>` - добавить пользователя\n"
-            "• `/access set <telegram_id> <role>` - изменить роль\n\n"
-            "**Доступные роли:**\n"
-            "• `admin` - администратор (полный доступ)\n"
-            "• `rop` - руководитель отдела продаж\n"
-            "• `topmanager` - топ-менеджер\n"
-            "• `stm` - старший менеджер\n"
-            "• `prodavan` - продавец"
-        )
-        await update.effective_chat.send_message(usage_text, parse_mode='Markdown')
-        return
-
-    action, tg_id_str, role_name = args[0], args[1], args[2]
-    
-    # Validate telegram ID
-    if not tg_id_str.isdigit():
-        await update.effective_chat.send_message("❌ Telegram ID должен быть числом.")
-        return
-
-    tg_id = int(tg_id_str)
-
-    from infrastructure.database.connection import session_scope
-    from infrastructure.database.repositories.user_repository import UserRepository
-    from infrastructure.database.repositories.role_repository import RoleRepository
-
-    with session_scope() as s:
-        users = UserRepository(s)
-        roles = RoleRepository(s)
+    @router.message(Command("access"))
+    async def access_command(message: Message) -> None:
+        """Handle /access command for user management."""
+        access_service = container.resolve(AccessService)
         
-        # Check if role exists
-        role = roles.get_by_name(role_name)
-        if role is None:
-            await update.effective_chat.send_message(f"❌ Роль '{role_name}' не найдена.")
+        # Extract command arguments from message text
+        command_parts = message.text.split()
+        args = command_parts[1:] if len(command_parts) > 1 else []
+        
+        # Only admins can use this command
+        if not access_service.is_admin(message.from_user.id):
+            await message.answer("❌ Команда доступна только администраторам.")
             return
 
-        # Get or create user
-        user = users.get_by_tg_id(tg_id)
-        if user is None:
-            users.create(tg_id, None, None, role.id)
-            await update.effective_chat.send_message(
-                f"✅ Пользователь {tg_id} добавлен с ролью **{role_name}**.",
-                parse_mode='Markdown'
+        # Show usage if no args provided
+        if len(args) < 3 or args[0] not in {"add", "set"}:
+            usage_text = (
+                "📝 <b>Управление пользователями:</b>\n\n"
+                "• <code>/access add &lt;telegram_id&gt; &lt;role&gt;</code> - добавить пользователя\n"
+                "• <code>/access set &lt;telegram_id&gt; &lt;role&gt;</code> - изменить роль\n\n"
+                "<b>Доступные роли:</b>\n"
+                "• <code>admin</code> - администратор (полный доступ)\n"
+                "• <code>rop</code> - руководитель отдела продаж\n"
+                "• <code>topmanager</code> - топ-менеджер\n"
+                "• <code>stm</code> - старший менеджер\n"
+                "• <code>prodavan</code> - продавец"
             )
-        else:
-            users.set_role(user.id, role.id)
-            await update.effective_chat.send_message(
-                f"✅ Пользователю {tg_id} назначена роль **{role_name}**.",
-                parse_mode='Markdown'
-            )
+            await message.answer(usage_text, parse_mode=ParseMode.HTML)
+            return
 
-def get_handler():
-    """Return the command handler for /access."""
-    return CommandHandler("access", access_command)
+        action, tg_id_str, role_name = args[0], args[1], args[2]
+        
+        # Validate telegram ID
+        if not tg_id_str.isdigit():
+            await message.answer("❌ Telegram ID должен быть числом.")
+            return
+
+        tg_id = int(tg_id_str)
+
+        from infrastructure.database.connection import session_scope
+        from infrastructure.database.repositories.user_repository import UserRepository
+        from infrastructure.database.repositories.role_repository import RoleRepository
+
+        with session_scope() as s:
+            users = UserRepository(s)
+            roles = RoleRepository(s)
+            
+            # Check if role exists
+            role = roles.get_by_name(role_name)
+            if role is None:
+                await message.answer(f"❌ Роль '{role_name}' не найдена.")
+                return
+
+            # Get or create user
+            user = users.get_by_tg_id(tg_id)
+            if user is None:
+                users.create(tg_id, None, None, role.id)
+                await message.answer(
+                    f"✅ Пользователь {tg_id} добавлен с ролью <b>{role_name}</b>.",
+                    parse_mode=ParseMode.HTML
+                )
+            else:
+                users.set_role(user.id, role.id)
+                await message.answer(
+                    f"✅ Пользователю {tg_id} назначена роль <b>{role_name}</b>.",
+                    parse_mode=ParseMode.HTML
+                )
