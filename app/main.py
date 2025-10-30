@@ -5,11 +5,12 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from app.container import setup_container
+from app.handlers import register_all_handlers
 
 load_dotenv()
 
@@ -36,12 +37,10 @@ async def main():
     )
     dp = Dispatcher()
 
-    # Register handlers
-    from app.handlers.start_handler import register_start_handler
-    from app.handlers.access_handler import register_access_handler
-
-    register_start_handler(dp, container)
-    register_access_handler(dp, container)
+    # Register all handlers via central registrar
+    router = Router()
+    register_all_handlers(router, container)
+    dp.include_router(router)
 
     logger.info("🚀 MyVibe Bot (aiogram + punq DI) запускается...")
     
