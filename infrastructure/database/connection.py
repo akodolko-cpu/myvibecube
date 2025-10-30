@@ -1,26 +1,43 @@
-# -*- coding: utf-8 -*-
-"""
-Асинхронное подключение к БД (SQLAlchemy)
-"""
+from __future__ import annotations
 
-from typing import Any
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+import logging
+import os
+from contextlib import contextmanager
 
-from app.config.database import DatabaseConfig
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+logger = logging.getLogger(__name__)
 
-class DatabaseConnection:
-    def __init__(self, config: DatabaseConfig) -> None:
-        self._config = config
-        self._engine: AsyncEngine = create_async_engine(
-            config.database_url,
-            echo=config.echo,
-            future=True,
-        )
+DB_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:@localhost:3306/telegram_bot")
+ECHO = os.getenv("DATABASE_ECHO", "False").lower() == "true"
+POOL_SIZE = int(os.getenv("DATABASE_POOL_SIZE", "10"))
+MAX_OVERFLOW = int(os.getenv("DATABASE_MAX_OVERFLOW", "20"))
+POOL_TIMEOUT = int(os.getenv("DATABASE_TIMEOUT", "30"))
 
-    @property
-    def engine(self) -> AsyncEngine:
-        return self._engine
+engine = create_engine(
+    DB_URL,
+    echo=ECHO,
+    pool_size=POOL_SIZE,
+    max_overflow=MAX_OVERFLOW,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+    pool_timeout=POOL_TIMEOUT,
+    future=True,
+)
 
-    async def dispose(self) -> None:
-        await self._engine.dispose()
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+@contextmanager
+def session_scope():
+    """Provide a transactional scope around a series of operations."""
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        logger.exception("DB transaction rolled back due to exception")
+        raise
+    finally:
+        session.close()
