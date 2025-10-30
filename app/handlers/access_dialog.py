@@ -45,16 +45,20 @@ def register_user_manage_dialog(router: Router):
     async def remove_pick_user(cb: CallbackQuery):
         uid = int(cb.data.split(":")[-1])
         DIALOGS[cb.from_user.id] = {"flow": "remove", "step": 2, "telegram_id": uid}
+        # Берём только примитивы из ORM внутри сессии
         with session_scope() as s:
             u = UserRepository(s).get_by_tg_id(uid)
+            full_name = u.full_name if u else None
+            role_id = u.role_id if u else None
         kb = InlineKeyboardBuilder()
         kb.button(text="✅ Удалить", callback_data="access:confirm_remove")
         kb.button(text="⬅️ Назад", callback_data="access:remove")
+        kb.adjust(1)
         text = (
             "Подтвердите удаление:\n"
             f"• Telegram ID: {uid}\n"
-            f"• Имя: {getattr(u,'full_name',None) or '—'}\n"
-            f"• Роль ID: {getattr(u,'role_id',None) or '—'}"
+            f"• Имя: {full_name or '—'}\n"
+            f"• Роль ID: {role_id or '—'}"
         )
         await cb.message.edit_text(text, reply_markup=kb.as_markup())
         await cb.answer()
