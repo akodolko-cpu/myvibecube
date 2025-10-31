@@ -14,6 +14,7 @@ from app.handlers import register_all_handlers
 
 # STEP 2 logging (logger)
 from app.logger import bot_logger
+from app.middleware.access_log_middleware import AccessLogMiddleware
 
 load_dotenv()
 
@@ -39,6 +40,9 @@ async def main():
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
+
+    # Подключаем middleware до регистрации роутеров
+    dp.update.middleware(AccessLogMiddleware())
 
     # Register all handlers via central registrar (ЭТАП 1)
     router = Router()
