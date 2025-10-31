@@ -21,7 +21,7 @@ class ActionLogService:
         details: Optional[Dict[str, Any]] = None,
         success: bool = True,
     ) -> ActionLog:
-        user = UserRepository(self.db).get_user_by_telegram_id(telegram_user_id)
+        user = UserRepository(self.db).get_by_tg_id(telegram_user_id)
         log = ActionLog(
             user_id=user.id if user else None,
             action_type=action_type,
@@ -51,7 +51,7 @@ class ActionLogService:
 
     # === READ API ===
     def get_user_action_logs(self, telegram_user_id: int, limit: int = 50) -> List[ActionLog]:
-        user = UserRepository(self.db).get_user_by_telegram_id(telegram_user_id)
+        user = UserRepository(self.db).get_by_tg_id(telegram_user_id)
         if not user:
             return []
         return (
