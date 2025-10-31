@@ -4,7 +4,7 @@ from typing import Callable, Dict, Any, Awaitable
 
 from infrastructure.database.connection import session_scope
 from app.services.log_service import ActionLogService
-from services.access_service import AccessService
+from app.services.access_service import AccessService
 
 
 class AccessLogMiddleware(BaseMiddleware):
