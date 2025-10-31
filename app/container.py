@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import punq
 from app.services.access_service import AccessService
+from infrastructure.database.connection import SessionLocal
+
 
 def setup_container() -> punq.Container:
     container = punq.Container()
 
-    # Только сервисы (SessionLocal не регистрируем — forwardref ломает punq на Python 3.13)
-    container.register(AccessService, factory=lambda: AccessService())
+    # Регистрируем фабрику, передающую новую Session в AccessService
+    container.register(AccessService, factory=lambda: AccessService(SessionLocal()))
 
     return container
