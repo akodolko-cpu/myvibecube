@@ -1,29 +1,44 @@
-from __future__ import annotations
-from functools import wraps
+from telegram import Update
+from telegram.ext import ContextTypes
 from typing import Callable
 
+from infrastructure.database.connection import get_db
 from app.services.access_service import AccessService
+from app.logger import log_command_start, log_access_denied
 
-access_service = AccessService()
 
-def require_access(command_name: str):
-    """Decorator to require specific access level for command handlers."""
-    def decorator(func: Callable):
-        @wraps(func)
-        async def wrapper(update, context, *args, **kwargs):
-            user = update.effective_user
-            # Ensure user exists in database
-            access_service.ensure_user(
-                user.id, 
-                user.username, 
-                f"{user.first_name or ''} {user.last_name or ''}".strip()
-            )
-            
-            # Check if user can execute this command
-            if not access_service.can_execute(user.id, command_name):
-                await update.effective_chat.send_message("❌ Недостаточно прав для выполнения команды.")
-                return
-            
-            return await func(update, context, *args, **kwargs)
-        return wrapper
-    return decorator
+class AccessMiddleware:
+    @staticmethod
+    async def require_access(command_name: str):
+        def decorator(handler: Callable):
+            async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                if not update.message:
+                    return await handler(update, context)
+                user_id = update.effective_user.id
+                db = next(get_db())
+                result = AccessService(db).check_command_access(user_id, command_name)
+                if not result['has_access']:
+                    log_access_denied(user_id, command_name)
+                    await update.message.reply_text(f"❌ Доступ запрещен\n\n{result['message']}")
+                    return
+                log_command_start(user_id, command_name)
+                return await handler(update, context)
+            return wrapper
+        return decorator
+
+    @staticmethod
+    async def check_access_before_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+        if not update.message or not update.message.text:
+            return True
+        if not update.message.text.startswith('/'):
+            return True
+        command = update.message.text.split()[0]
+        user_id = update.effective_user.id
+        db = next(get_db())
+        result = AccessService(db).check_command_access(user_id, command)
+        if not result['has_access']:
+            log_access_denied(user_id, command)
+            await update.message.reply_text(f"❌ Доступ запрещен\n\n{result['message']}")
+            return False
+        log_command_start(user_id, command)
+        return True

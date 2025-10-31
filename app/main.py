@@ -12,6 +12,9 @@ from aiogram.enums import ParseMode
 from app.container import setup_container
 from app.handlers import register_all_handlers
 
+# STEP 2 logging (logger)
+from app.logger import bot_logger
+
 load_dotenv()
 
 logging.basicConfig(
@@ -37,13 +40,14 @@ async def main():
     )
     dp = Dispatcher()
 
-    # Register all handlers via central registrar
+    # Register all handlers via central registrar (ЭТАП 1)
     router = Router()
     register_all_handlers(router, container)
     dp.include_router(router)
 
-    logger.info("🚀 MyVibe Bot (aiogram + punq DI) запускается...")
-    
+    # Логгер STEP 2 готов (используется во всех местах)
+    bot_logger.info("🚀 MyVibe Bot (aiogram + punq DI) запускается... (STEP 2 logging ready)")
+
     try:
         await dp.start_polling(bot)
     finally:
